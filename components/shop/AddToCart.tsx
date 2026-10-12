@@ -1,0 +1,3 @@
+'use client';
+import {useState} from 'react';
+export function AddToCart({productId}:{productId:string}){const [loading,setLoading]=useState(false);const [msg,setMsg]=useState('');async function add(){setLoading(true);setMsg('');const r=await fetch('/api/cart',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId})});const j=await r.json();setLoading(false);if(!r.ok){if(r.status===401) location.href='/login?next=/cart'; else setMsg(j.error?.message||'Failed');return;}setMsg('Added to cart');}return <div><button onClick={add} disabled={loading} className="btn-primary w-full">{loading?'Adding...':'Add to cart'}</button>{msg&&<p className="mt-2 text-center text-xs text-slate-400">{msg}</p>}</div>}

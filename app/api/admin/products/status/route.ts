@@ -1,0 +1,2 @@
+import {prisma} from '@/lib/database/prisma';import {requireRole} from '@/lib/auth/session';import {assertSameOrigin} from '@/lib/security/request';import {redirect} from 'next/navigation';
+export async function POST(req:Request){assertSameOrigin(req);const u=await requireRole('ADMIN');const f=await req.formData();const id=String(f.get('id'));const status=String(f.get('status')) as any;await prisma.product.update({where:{id},data:{status}});await prisma.adminLog.create({data:{adminId:u.id,action:'PRODUCT_STATUS',target:id,meta:{status}}});redirect('/admin/products');}

@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cryon
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: cryon61
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on: [db]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://cryon:${DB_PASSWORD}@db:5432/cryon61?schema=public
+    ports:
+      - "3000:3000"
+    volumes:
+      - private-storage:/app/storage-private
+volumes:
+  pgdata:
+  private-storage:
