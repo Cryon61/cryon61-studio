@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { handle, ok, ApiError } from "@/lib/utils/api";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -18,3 +20,4 @@ export const GET = handle(async () => {
     joinedAt: user.createdAt,
   });
 });
+
