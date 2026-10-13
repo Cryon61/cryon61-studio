@@ -99,7 +99,7 @@ model Product {
   status          ProductStatus     @default(DRAFT)
   featured        Boolean           @default(false)
   licenseType     LicenseType       @default(PERSONAL)
-  licenseMode     LicenseMode       @default(NONE)
+  licenseMode     LicenseMode      @default(NONE)
   sourceMode      SourceMode        @default(CLOSED_SOURCE)
   allowRepurchase Boolean           @default(false)
   robloxCompat    String?
@@ -346,16 +346,16 @@ model LicenseActivation {
 }
 
 model DownloadToken {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
-  licenseId String
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  licenseId String?
   userId    String
   fileId    String
   expiresAt DateTime
-  usedCount Int      @default(0)
-  maxUses   Int      @default(3)
-  createdAt DateTime @default(now())
-  license   License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  usedCount Int       @default(0)
+  maxUses   Int       @default(3)
+  createdAt DateTime  @default(now())
+  license   License?  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
 
   @@index([licenseId])
 }
@@ -498,7 +498,7 @@ model AuditLog {
   ip        String?
   userAgent String?
   meta      Json?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   actor     User?    @relation("AuditActor", fields: [actorId], references: [id])
 
   @@index([action, createdAt])
@@ -516,7 +516,7 @@ model ApiKey {
   name      String
   keyHash   String   @unique
   active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 enum Role {
@@ -562,6 +562,7 @@ enum LicenseType {
   COMMERCIAL
   UNLIMITED
 }
+
 enum LicenseMode {
   NONE
   REQUIRED
@@ -614,6 +615,3 @@ enum TransactionType {
   PAYOUT
   COMMISSION
 }
-
-
-
