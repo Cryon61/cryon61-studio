@@ -41,7 +41,8 @@ export default async function EditProductPage({
     redirect("/admin/products");
   }
 
-  const currentCategoryId = product.categories[0]?.categoryId ?? "";
+  const currentCategoryId =
+    product.categories[0]?.categoryId ?? "";
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
@@ -58,8 +59,8 @@ export default async function EditProductPage({
         </h1>
 
         <p className="mt-2 text-slate-400">
-          Update product information without changing its existing
-          files, orders, licenses, or sales data.
+          Update product information without changing its
+          existing files, orders, licenses, or sales data.
         </p>
       </div>
 
@@ -75,7 +76,11 @@ export default async function EditProductPage({
           features: product.features,
           requirements: product.requirements ?? "",
           robloxCompat: product.robloxCompat ?? "",
+
           licenseType: product.licenseType,
+          licenseMode: product.licenseMode,
+          sourceMode: product.sourceMode,
+
           featured: product.featured,
           categoryId: currentCategoryId,
         }}

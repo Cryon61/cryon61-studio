@@ -15,9 +15,19 @@ const productSchema = z.object({
   features: z.array(z.string()).default([]),
   requirements: z.string().optional(),
   robloxCompat: z.string().optional(),
+
   licenseType: z
     .enum(["PERSONAL", "COMMERCIAL", "UNLIMITED"])
     .default("PERSONAL"),
+
+  licenseMode: z
+    .enum(["NONE", "REQUIRED", "OPTIONAL"])
+    .default("NONE"),
+
+  sourceMode: z
+    .enum(["CLOSED_SOURCE", "OPEN_SOURCE"])
+    .default("CLOSED_SOURCE"),
+
   featured: z.boolean().default(false),
 });
 
@@ -38,7 +48,11 @@ export const POST = handle(async (req: Request) => {
       features: b.features,
       requirements: b.requirements,
       robloxCompat: b.robloxCompat,
+
       licenseType: b.licenseType,
+      licenseMode: b.licenseMode,
+      sourceMode: b.sourceMode,
+
       featured: b.featured,
       status: "DRAFT",
 
@@ -137,7 +151,11 @@ export const PATCH = handle(async (req: Request) => {
         features: b.features,
         requirements: b.requirements,
         robloxCompat: b.robloxCompat,
+
         licenseType: b.licenseType,
+        licenseMode: b.licenseMode,
+        sourceMode: b.sourceMode,
+
         featured: b.featured,
 
         categories: {
