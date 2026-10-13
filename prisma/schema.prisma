@@ -4,25 +4,95 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url = env("DATABASE_URL")
 }
 
-// ───────────── Enums ─────────────
-enum Role { USER SELLER ADMIN OWNER }
-enum ProductStatus { DRAFT PENDING PUBLISHED ARCHIVED }
-enum OrderStatus { PENDING PAID PROCESSING COMPLETED CANCELLED REFUNDED }
-enum PaymentStatus { PENDING PAID FAILED EXPIRED CANCELLED REFUNDED }
-enum LicenseStatus { ACTIVE EXPIRED REVOKED }
-enum LicenseType { PERSONAL COMMERCIAL UNLIMITED }
-enum ReviewStatus { PENDING APPROVED HIDDEN }
-enum RefundStatus { REQUESTED APPROVED REJECTED COMPLETED }
-enum DiscountType { PERCENTAGE FIXED }
-enum EmailTokenType { VERIFY_EMAIL RESET_PASSWORD }
-enum SellerStatus { PENDING APPROVED SUSPENDED }
-enum PayoutStatus { PENDING PAID FAILED }
-enum TransactionType { PAYMENT REFUND PAYOUT COMMISSION }
+enum Role {
+ USER
+ SELLER
+ ADMIN
+ OWNER
+}
 
-// ───────────── Users / Auth ─────────────
+enum ProductStatus {
+ DRAFT
+ PENDING
+ PUBLISHED
+ ARCHIVED
+}
+
+enum OrderStatus {
+ PENDING
+ PAID
+ PROCESSING
+ COMPLETED
+ CANCELLED
+ REFUNDED
+}
+
+enum PaymentStatus {
+ PENDING
+ PAID
+ FAILED
+ EXPIRED
+ CANCELLED
+ REFUNDED
+}
+
+enum LicenseStatus {
+ ACTIVE
+ EXPIRED
+ REVOKED
+}
+
+enum LicenseType {
+ PERSONAL
+ COMMERCIAL
+ UNLIMITED
+}
+
+enum ReviewStatus {
+ PENDING
+ APPROVED
+ HIDDEN
+}
+
+enum RefundStatus {
+ REQUESTED
+ APPROVED
+ REJECTED
+ COMPLETED
+}
+
+enum DiscountType {
+ PERCENTAGE
+ FIXED
+}
+
+enum EmailTokenType {
+ VERIFY_EMAIL
+ RESET_PASSWORD
+}
+
+enum SellerStatus {
+ PENDING
+ APPROVED
+ SUSPENDED
+}
+
+enum PayoutStatus {
+ PENDING
+ PAID
+ FAILED
+}
+
+enum TransactionType {
+ PAYMENT
+ REFUND
+ PAYOUT
+ COMMISSION
+}
+
 model User {
   id            String    @id @default(cuid())
   username      String    @unique
@@ -95,7 +165,7 @@ model EmailToken {
   @@index([userId, type])
 }
 
-// ───────────── Catalog ─────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Catalog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 model Category {
   id        String            @id @default(cuid())
   name      String            @unique
@@ -191,7 +261,7 @@ model ProductFile {
   @@index([productId])
 }
 
-// ───────────── Cart / Wishlist ─────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Cart / Wishlist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 model Cart {
   id        String     @id @default(cuid())
   userId    String     @unique
@@ -222,7 +292,7 @@ model Wishlist {
   @@unique([userId, productId])
 }
 
-// ───────────── Orders / Payments ─────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Orders / Payments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 model Order {
   id             String      @id @default(cuid())
   orderNumber    String      @unique // CRYON-2026-000001
@@ -332,7 +402,7 @@ model Refund {
   @@index([status])
 }
 
-// ───────────── Licenses / Downloads ─────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Licenses / Downloads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 model License {
   id           String        @id @default(cuid())
   key          String        @unique // CRYON61-FISH-XXXX-XXXX-XXXX
@@ -400,7 +470,7 @@ model Download {
   @@index([licenseId])
 }
 
-// ───────────── Reviews / Coupons ─────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Reviews / Coupons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 model Review {
   id        String       @id @default(cuid())
   userId    String
@@ -448,7 +518,7 @@ model CouponUsage {
   @@index([couponId, userId])
 }
 
-// ───────────── Sellers ─────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Sellers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 model Seller {
   id          String       @id @default(cuid())
   userId      String       @unique
@@ -483,7 +553,7 @@ model Payout {
   paidAt    DateTime?
 }
 
-// ───────────── Notifications / Logs / Settings ─────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Notifications / Logs / Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 model Notification {
   id        String   @id @default(cuid())
   userId    String
