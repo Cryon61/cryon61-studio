@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Category = {
@@ -16,16 +16,14 @@ type Product = {
   price: number;
   discountPercent: number;
   thumbnailUrl: string;
+  freeDownloadUrl: string;
+  externalDownloadUrl: string;
   features: string[];
   requirements: string;
   robloxCompat: string;
-
   licenseType: "PERSONAL" | "COMMERCIAL" | "UNLIMITED";
-
   licenseMode: "NONE" | "REQUIRED" | "OPTIONAL";
-
   sourceMode: "CLOSED_SOURCE" | "OPEN_SOURCE";
-
   featured: boolean;
   categoryId: string;
 };
@@ -45,11 +43,18 @@ export function ProductEditForm({
     description: product.description,
     price: String(product.price),
     discountPercent: String(product.discountPercent),
-    categoryId: product.categoryId || categories[0]?.id || "",
-    thumbnailUrl: product.thumbnailUrl,
+    categoryId:
+      product.categoryId || categories[0]?.id || "",
+    thumbnailUrl: product.thumbnailUrl || "",
+
+    freeDownloadUrl:
+      product.freeDownloadUrl || "",
+    externalDownloadUrl:
+      product.externalDownloadUrl || "",
+
     features: product.features.join("\n"),
-    requirements: product.requirements,
-    robloxCompat: product.robloxCompat,
+    requirements: product.requirements || "",
+    robloxCompat: product.robloxCompat || "",
 
     licenseType: product.licenseType,
     licenseMode: product.licenseMode,
@@ -61,74 +66,270 @@ export function ProductEditForm({
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
 
-  function update(field: string, value: string | boolean) {
+  const [imagePreview, setImagePreview] =
+    useState(product.thumbnailUrl || "");
+
+  const [imageName, setImageName] =
+    useState("");
+
+  const [imageUploading, setImageUploading] =
+    useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  function update(
+    field: string,
+    value: string | boolean,
+  ) {
     setForm((current) => ({
       ...current,
       [field]: value,
     }));
   }
 
-  async function submit(e: React.FormEvent) {
+  async function handleImageChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setMsg("File harus berupa gambar.");
+      e.target.value = "";
+      return;
+    }
+
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setMsg(
+        "Format gambar harus PNG, JPG, atau WEBP.",
+      );
+      e.target.value = "";
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      setMsg(
+        "Ukuran gambar maksimal 5 MB.",
+      );
+      e.target.value = "";
+      return;
+    }
+
+    if (imagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    const previewUrl =
+      URL.createObjectURL(file);
+
+    setImagePreview(previewUrl);
+    setImageName(file.name);
+    setImageUploading(true);
+    setMsg("Uploading image...");
+
+    try {
+      const formData = new FormData();
+
+      formData.append("file", file);
+
+      const response = await fetch(
+        "/api/admin/upload",
+        {
+          method: "POST",
+          credentials: "same-origin",
+          body: formData,
+        },
+      );
+
+      const data =
+        await response.json().catch(
+          () => ({}),
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          data.error?.message ||
+            data.message ||
+            "Upload gambar gagal.",
+        );
+      }
+
+      const uploadedUrl =
+        data.data?.url ||
+        data.url;
+
+      if (!uploadedUrl) {
+        throw new Error(
+          "URL gambar tidak ditemukan.",
+        );
+      }
+
+      update(
+        "thumbnailUrl",
+        uploadedUrl,
+      );
+
+      setImagePreview(uploadedUrl);
+      setMsg(
+        "Image uploaded successfully.",
+      );
+    } catch (error) {
+      setMsg(
+        error instanceof Error
+          ? error.message
+          : "Upload gambar gagal.",
+      );
+    } finally {
+      setImageUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  function removeImage() {
+    if (imagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImagePreview("");
+    setImageName("");
+
+    update(
+      "thumbnailUrl",
+      "",
+    );
+
+    setMsg("");
+  }
+
+  async function submit(
+    e: React.FormEvent,
+  ) {
     e.preventDefault();
+
+    if (imageUploading) {
+      setMsg(
+        "Tunggu sampai upload gambar selesai.",
+      );
+      return;
+    }
 
     setSaving(true);
     setMsg("Saving changes...");
 
     try {
-      const response = await fetch("/api/admin/products", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "/api/admin/products",
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            id: product.id,
+
+            name: form.name,
+            slug: form.slug,
+            description: form.description,
+
+            price: Number(form.price),
+
+            discountPercent: Number(
+              form.discountPercent,
+            ),
+
+            categoryIds: form.categoryId
+              ? [form.categoryId]
+              : [],
+
+            thumbnailUrl:
+              form.thumbnailUrl,
+
+            freeDownloadUrl:
+              form.freeDownloadUrl.trim(),
+
+            externalDownloadUrl:
+              form.externalDownloadUrl.trim(),
+
+            features: form.features
+              .split("\n")
+              .map((item) =>
+                item.trim(),
+              )
+              .filter(Boolean),
+
+            requirements:
+              form.requirements,
+
+            robloxCompat:
+              form.robloxCompat,
+
+            licenseType:
+              form.licenseType,
+
+            licenseMode:
+              form.licenseMode,
+
+            sourceMode:
+              form.sourceMode,
+
+            featured:
+              form.featured,
+
+            allowRepurchase: false,
+            currency: "IDR",
+            status: "PUBLISHED",
+          }),
         },
-        body: JSON.stringify({
-          id: product.id,
+      );
 
-          name: form.name,
-          slug: form.slug,
-          description: form.description,
-
-          price: Number(form.price),
-          discountPercent: Number(form.discountPercent),
-
-          categoryId: form.categoryId,
-
-          thumbnailUrl: form.thumbnailUrl,
-
-          features: form.features
-            .split("\n")
-            .map((item) => item.trim())
-            .filter(Boolean),
-
-          requirements: form.requirements,
-          robloxCompat: form.robloxCompat,
-
-          licenseType: form.licenseType,
-          licenseMode: form.licenseMode,
-          sourceMode: form.sourceMode,
-
-          featured: form.featured,
-        }),
-      });
-
-      const data = await response.json();
+      const data =
+        await response.json().catch(
+          () => ({}),
+        );
 
       if (!response.ok) {
         setMsg(
           data.error?.message ||
-            "Failed to update product."
+            data.message ||
+            "Failed to update product.",
         );
 
         return;
       }
 
-      setMsg("Product updated successfully.");
+      setMsg(
+        "Product updated successfully.",
+      );
 
       setTimeout(() => {
-        router.push("/admin/products");
+        router.push(
+          "/admin/products",
+        );
+
         router.refresh();
       }, 500);
     } catch {
-      setMsg("Something went wrong.");
+      setMsg(
+        "Something went wrong.",
+      );
     } finally {
       setSaving(false);
     }
@@ -148,7 +349,10 @@ export function ProductEditForm({
         placeholder="Product name"
         value={form.name}
         onChange={(e) =>
-          update("name", e.target.value)
+          update(
+            "name",
+            e.target.value,
+          )
         }
         required
       />
@@ -158,7 +362,10 @@ export function ProductEditForm({
         placeholder="Slug"
         value={form.slug}
         onChange={(e) =>
-          update("slug", e.target.value)
+          update(
+            "slug",
+            e.target.value,
+          )
         }
         required
       />
@@ -170,7 +377,10 @@ export function ProductEditForm({
         placeholder="Price IDR"
         value={form.price}
         onChange={(e) =>
-          update("price", e.target.value)
+          update(
+            "price",
+            e.target.value,
+          )
         }
         required
       />
@@ -181,11 +391,13 @@ export function ProductEditForm({
         min="0"
         max="100"
         placeholder="Discount %"
-        value={form.discountPercent}
+        value={
+          form.discountPercent
+        }
         onChange={(e) =>
           update(
             "discountPercent",
-            e.target.value
+            e.target.value,
           )
         }
       />
@@ -196,23 +408,24 @@ export function ProductEditForm({
         onChange={(e) =>
           update(
             "categoryId",
-            e.target.value
+            e.target.value,
           )
         }
-        required
       >
         <option value="">
           Select category
         </option>
 
-        {categories.map((category) => (
-          <option
-            key={category.id}
-            value={category.id}
-          >
-            {category.name}
-          </option>
-        ))}
+        {categories.map(
+          (category) => (
+            <option
+              key={category.id}
+              value={category.id}
+            >
+              {category.name}
+            </option>
+          ),
+        )}
       </select>
 
       <select
@@ -221,7 +434,7 @@ export function ProductEditForm({
         onChange={(e) =>
           update(
             "licenseType",
-            e.target.value as Product["licenseType"]
+            e.target.value as Product["licenseType"],
           )
         }
       >
@@ -244,7 +457,7 @@ export function ProductEditForm({
         onChange={(e) =>
           update(
             "licenseMode",
-            e.target.value as Product["licenseMode"]
+            e.target.value as Product["licenseMode"],
           )
         }
       >
@@ -267,7 +480,7 @@ export function ProductEditForm({
         onChange={(e) =>
           update(
             "sourceMode",
-            e.target.value as Product["sourceMode"]
+            e.target.value as Product["sourceMode"],
           )
         }
       >
@@ -280,17 +493,123 @@ export function ProductEditForm({
         </option>
       </select>
 
-      <input
-        className="input md:col-span-2"
-        placeholder="Thumbnail URL"
-        value={form.thumbnailUrl}
-        onChange={(e) =>
-          update(
-            "thumbnailUrl",
-            e.target.value
-          )
-        }
-      />
+      {/* THUMBNAIL */}
+      <div className="md:col-span-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-sm font-semibold text-white">
+          Product Thumbnail
+        </p>
+
+        <p className="mt-1 text-xs text-slate-500">
+          Pilih gambar dari Gallery di HP
+          atau File Explorer di laptop.
+          Maksimal 5 MB.
+        </p>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-[220px_1fr]">
+          <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
+            {imagePreview ? (
+              <img
+                src={imagePreview}
+                alt="Product thumbnail preview"
+                className="aspect-video h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex aspect-video items-center justify-center text-sm text-slate-600">
+                No image
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col justify-center gap-3">
+            <label
+              className={`btn-primary inline-flex min-h-11 items-center justify-center ${
+                imageUploading ||
+                saving
+                  ? "pointer-events-none opacity-60"
+                  : "cursor-pointer"
+              }`}
+            >
+              {imageUploading
+                ? "Uploading..."
+                : "Choose Image"}
+
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={
+                  imageUploading ||
+                  saving
+                }
+                onChange={
+                  handleImageChange
+                }
+              />
+            </label>
+
+            {imageName && (
+              <p className="break-all text-xs text-slate-400">
+                Selected: {imageName}
+              </p>
+            )}
+
+            {imagePreview && (
+              <button
+                type="button"
+                className="btn-ghost min-h-11"
+                onClick={
+                  removeImage
+                }
+                disabled={
+                  imageUploading ||
+                  saving
+                }
+              >
+                Remove Image
+              </button>
+            )}
+
+            <p className="text-xs text-slate-600">
+              PNG, JPG, JPEG atau WEBP.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-2 block text-xs font-medium text-slate-300">
+            Thumbnail URL
+          </label>
+
+          <input
+            className="input w-full"
+            placeholder="https://example.com/image.webp"
+            value={form.thumbnailUrl}
+            onChange={(e) => {
+              update(
+                "thumbnailUrl",
+                e.target.value,
+              );
+
+              if (
+                e.target.value.trim()
+              ) {
+                setImagePreview(
+                  e.target.value,
+                );
+                setImageName("");
+              } else {
+                setImagePreview("");
+                setImageName("");
+              }
+            }}
+          />
+
+          <p className="mt-1 text-xs text-slate-600">
+            URL akan otomatis terisi setelah
+            upload gambar berhasil.
+          </p>
+        </div>
+      </div>
 
       <textarea
         className="input min-h-32 md:col-span-2"
@@ -299,7 +618,7 @@ export function ProductEditForm({
         onChange={(e) =>
           update(
             "description",
-            e.target.value
+            e.target.value,
           )
         }
         required
@@ -312,7 +631,7 @@ export function ProductEditForm({
         onChange={(e) =>
           update(
             "features",
-            e.target.value
+            e.target.value,
           )
         }
       />
@@ -324,7 +643,7 @@ export function ProductEditForm({
         onChange={(e) =>
           update(
             "requirements",
-            e.target.value
+            e.target.value,
           )
         }
       />
@@ -336,7 +655,7 @@ export function ProductEditForm({
         onChange={(e) =>
           update(
             "robloxCompat",
-            e.target.value
+            e.target.value,
           )
         }
       />
@@ -348,7 +667,7 @@ export function ProductEditForm({
           onChange={(e) =>
             update(
               "featured",
-              e.target.checked
+              e.target.checked,
             )
           }
         />
@@ -356,14 +675,85 @@ export function ProductEditForm({
         Featured product
       </label>
 
+      {/* DELIVERY SETTINGS */}
+      <div className="md:col-span-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-sm font-semibold text-white">
+          Delivery Settings
+        </p>
+
+        <p className="mt-1 text-xs text-slate-500">
+          Atur link download untuk produk
+          gratis dan akses download untuk
+          produk berbayar.
+        </p>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-xs font-medium text-slate-300">
+              Free Download Link
+            </label>
+
+            <input
+              className="input w-full"
+              type="url"
+              placeholder="https://example.com/free-download"
+              value={
+                form.freeDownloadUrl
+              }
+              onChange={(e) =>
+                update(
+                  "freeDownloadUrl",
+                  e.target.value,
+                )
+              }
+            />
+
+            <p className="mt-1 text-xs text-slate-500">
+              Digunakan untuk produk
+              gratis yang menyediakan
+              download langsung.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs font-medium text-slate-300">
+              External Paid Download Link
+            </label>
+
+            <input
+              className="input w-full"
+              type="url"
+              placeholder="https://example.com/paid-download"
+              value={
+                form.externalDownloadUrl
+              }
+              onChange={(e) =>
+                update(
+                  "externalDownloadUrl",
+                  e.target.value,
+                )
+              }
+            />
+
+            <p className="mt-1 text-xs text-slate-500">
+              Untuk produk berbayar yang
+              file-nya disimpan di layanan
+              eksternal.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* DISTRIBUTION SETTINGS */}
       <div className="md:col-span-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
         <p className="text-sm font-semibold text-white">
           Distribution Settings
         </p>
 
         <p className="mt-1 text-xs text-slate-500">
-          Atur apakah produk membutuhkan license dan
-          apakah source code tersedia untuk pembeli.
+          Atur apakah produk membutuhkan
+          license dan apakah source code
+          tersedia untuk pembeli.
         </p>
 
         <div className="mt-3 grid gap-2 text-xs text-slate-400">
@@ -371,9 +761,11 @@ export function ProductEditForm({
             <span className="font-semibold text-slate-300">
               License:
             </span>{" "}
-            {form.licenseMode === "NONE"
+            {form.licenseMode ===
+            "NONE"
               ? "Tidak membutuhkan license"
-              : form.licenseMode === "REQUIRED"
+              : form.licenseMode ===
+                "REQUIRED"
               ? "License wajib"
               : "License optional"}
           </div>
@@ -382,21 +774,46 @@ export function ProductEditForm({
             <span className="font-semibold text-slate-300">
               Source:
             </span>{" "}
-            {form.sourceMode === "OPEN_SOURCE"
+            {form.sourceMode ===
+            "OPEN_SOURCE"
               ? "Source code terbuka"
               : "Source code tertutup"}
+          </div>
+
+          <div>
+            <span className="font-semibold text-slate-300">
+              Free Download:
+            </span>{" "}
+            {form.freeDownloadUrl.trim()
+              ? "Tersedia"
+              : "Belum dikonfigurasi"}
+          </div>
+
+          <div>
+            <span className="font-semibold text-slate-300">
+              External Paid Download:
+            </span>{" "}
+            {form.externalDownloadUrl.trim()
+              ? "Tersedia"
+              : "Belum dikonfigurasi"}
           </div>
         </div>
       </div>
 
+      {/* ACTIONS */}
       <div className="flex flex-wrap gap-3 md:col-span-2">
         <button
           type="submit"
           className="btn-primary"
-          disabled={saving}
+          disabled={
+            saving ||
+            imageUploading
+          }
         >
           {saving
             ? "Saving..."
+            : imageUploading
+            ? "Uploading..."
             : "Save Changes"}
         </button>
 
@@ -404,9 +821,14 @@ export function ProductEditForm({
           type="button"
           className="btn-ghost"
           onClick={() =>
-            router.push("/admin/products")
+            router.push(
+              "/admin/products",
+            )
           }
-          disabled={saving}
+          disabled={
+            saving ||
+            imageUploading
+          }
         >
           Cancel
         </button>

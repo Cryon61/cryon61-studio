@@ -73,6 +73,13 @@ export default async function EditProductPage({
           price: product.price,
           discountPercent: product.discountPercent,
           thumbnailUrl: product.thumbnailUrl ?? "",
+
+          freeDownloadUrl:
+            product.freeDownloadUrl ?? "",
+
+          externalDownloadUrl:
+            product.externalDownloadUrl ?? "",
+
           features: product.features,
           requirements: product.requirements ?? "",
           robloxCompat: product.robloxCompat ?? "",

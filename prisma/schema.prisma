@@ -87,40 +87,42 @@ model Category {
 }
 
 model Product {
-  id              String            @id @default(cuid())
-  slug            String            @unique
-  name            String
-  description     String
-  features        String[]
-  requirements    String?
-  price           Int
-  discountPercent Int               @default(0)
-  currency        String            @default("IDR")
-  status          ProductStatus     @default(DRAFT)
-  featured        Boolean           @default(false)
-  licenseType     LicenseType       @default(PERSONAL)
-  licenseMode     LicenseMode      @default(NONE)
-  sourceMode      SourceMode        @default(CLOSED_SOURCE)
-  allowRepurchase Boolean           @default(false)
-  robloxCompat    String?
-  thumbnailUrl    String?
-  salesCount      Int               @default(0)
-  ratingAvg       Float             @default(0)
-  ratingCount     Int               @default(0)
-  sellerId        String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  cartItems       CartItem[]
-  licenses        License[]
-  orderItems      OrderItem[]
-  seller          Seller?           @relation(fields: [sellerId], references: [id])
-  categories      ProductCategory[]
-  files           ProductFile[]
-  images          ProductImage[]
-  versions        ProductVersion[]
-  reviews         Review[]
-  sellerLinks     SellerProduct[]
-  wishlist        Wishlist[]
+  id                  String            @id @default(cuid())
+  slug                String            @unique
+  name                String
+  description         String
+  features            String[]
+  requirements        String?
+  price               Int
+  discountPercent     Int               @default(0)
+  currency            String            @default("IDR")
+  status              ProductStatus     @default(DRAFT)
+  featured            Boolean           @default(false)
+  licenseType         LicenseType       @default(PERSONAL)
+  licenseMode         LicenseMode       @default(NONE)
+  sourceMode          SourceMode        @default(CLOSED_SOURCE)
+  freeDownloadUrl     String?
+  externalDownloadUrl String?
+  allowRepurchase     Boolean           @default(false)
+  robloxCompat        String?
+  thumbnailUrl        String?
+  salesCount          Int               @default(0)
+  ratingAvg           Float             @default(0)
+  ratingCount         Int               @default(0)
+  sellerId            String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  cartItems           CartItem[]
+  licenses            License[]
+  orderItems          OrderItem[]
+  seller              Seller?           @relation(fields: [sellerId], references: [id])
+  categories          ProductCategory[]
+  files               ProductFile[]
+  images              ProductImage[]
+  versions            ProductVersion[]
+  reviews             Review[]
+  sellerLinks         SellerProduct[]
+  wishlist            Wishlist[]
 
   @@index([status, createdAt])
   @@index([status, salesCount])
@@ -145,14 +147,14 @@ model ProductImage {
 }
 
 model ProductVersion {
-  id        String        @id @default(cuid())
-  productId String
-  version   String
-  changelog String?
-  isLatest  Boolean       @default(false)
-  createdAt DateTime      @default(now())
-  files     ProductFile[]
-  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id         String        @id @default(cuid())
+  productId  String
+  version    String
+  changelog  String?
+  isLatest   Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  files      ProductFile[]
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, version])
 }
@@ -241,7 +243,7 @@ model OrderItem {
   commission Int     @default(0)
   order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product    Product @relation(fields: [productId], references: [id])
-
+  
   @@index([orderId])
   @@index([productId])
   @@index([sellerId])
@@ -417,7 +419,7 @@ model CouponUsage {
   orderId   String
   createdAt DateTime @default(now())
   coupon    Coupon   @relation(fields: [couponId], references: [id])
-  order     Order    @relation(fields: [orderId], references: [id])
+  order     Order   @relation(fields: [orderId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([couponId, userId])
@@ -470,11 +472,11 @@ model Notification {
 }
 
 model Announcement {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   title     String
   body      String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
 }
 
 model AdminLog {
@@ -498,7 +500,7 @@ model AuditLog {
   ip        String?
   userAgent String?
   meta      Json?
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
   actor     User?    @relation("AuditActor", fields: [actorId], references: [id])
 
   @@index([action, createdAt])
@@ -516,7 +518,7 @@ model ApiKey {
   name      String
   keyHash   String   @unique
   active    Boolean  @default(true)
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 }
 
 enum Role {
