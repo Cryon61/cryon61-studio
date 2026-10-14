@@ -6,43 +6,127 @@ import { ApiError, handle, ok } from "@/lib/utils/api";
 import { assertSameOrigin } from "@/lib/security/request";
 
 const productSchema = z.object({
-  name: z.string().min(1).max(200),
-  slug: z.string().min(1).max(200),
-  description: z.string().min(1),
+  name: z.string().trim().min(1).max(200),
+
+  slug: z.string().trim().min(1).max(200),
+
+  description: z
+    .string()
+    .optional()
+    .or(z.literal("")),
+
   features: z.array(z.string()).default([]),
-  requirements: z.string().optional().or(z.literal("")),
+
+  requirements: z
+    .string()
+    .optional()
+    .or(z.literal("")),
+
   price: z.number().int().min(0),
-  discountPercent: z.number().int().min(0).max(100).default(0),
-  currency: z.string().min(1).max(10).default("IDR"),
-  status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).default("DRAFT"),
-  featured: z.boolean().default(false),
+
+  discountPercent: z
+    .number()
+    .int()
+    .min(0)
+    .max(100)
+    .default(0),
+
+  currency: z
+    .string()
+    .min(1)
+    .max(10)
+    .default("IDR"),
+
+  status: z
+    .enum([
+      "DRAFT",
+      "PENDING",
+      "PUBLISHED",
+      "ARCHIVED",
+    ])
+    .default("DRAFT"),
+
+  featured: z
+    .boolean()
+    .default(false),
+
   licenseType: z
-    .enum(["PERSONAL", "COMMERCIAL", "UNLIMITED"])
+    .enum([
+      "PERSONAL",
+      "COMMERCIAL",
+      "UNLIMITED",
+    ])
     .default("PERSONAL"),
+
   licenseMode: z
-    .enum(["NONE", "REQUIRED", "OPTIONAL"])
+    .enum([
+      "NONE",
+      "REQUIRED",
+      "OPTIONAL",
+    ])
     .default("NONE"),
+
   sourceMode: z
-    .enum(["CLOSED_SOURCE", "OPEN_SOURCE"])
+    .enum([
+      "CLOSED_SOURCE",
+      "OPEN_SOURCE",
+    ])
     .default("CLOSED_SOURCE"),
+
   freeDownloadUrl: z
     .string()
     .trim()
     .optional()
     .or(z.literal("")),
+
   externalDownloadUrl: z
     .string()
     .trim()
     .optional()
     .or(z.literal("")),
-  allowRepurchase: z.boolean().default(false),
-  robloxCompat: z.string().optional().or(z.literal("")),
-  thumbnailUrl: z.string().optional().or(z.literal("")),
-  categoryIds: z.array(z.string()).default([]),
+
+  allowRepurchase: z
+    .boolean()
+    .default(false),
+
+  robloxCompat: z
+    .string()
+    .optional()
+    .or(z.literal("")),
+
+  thumbnailUrl: z
+    .string()
+    .optional()
+    .or(z.literal("")),
+
+  categoryIds: z
+    .array(z.string())
+    .default([]),
 });
 
 async function requireAdmin() {
   return requireRole("ADMIN");
+}
+
+async function getOrCreateSeller(user: {
+  id: string;
+  username: string;
+}) {
+  const seller = await prisma.seller.upsert({
+    where: {
+      userId: user.id,
+    },
+
+    create: {
+      userId: user.id,
+      storeName: user.username,
+      status: "APPROVED",
+    },
+
+    update: {},
+  });
+
+  return seller;
 }
 
 export const GET = handle(async () => {
@@ -52,6 +136,7 @@ export const GET = handle(async () => {
     orderBy: {
       createdAt: "desc",
     },
+
     include: {
       categories: true,
     },
@@ -64,6 +149,7 @@ export const POST = handle(async (req: Request) => {
   assertSameOrigin(req);
 
   const user = await requireAdmin();
+
   const body = await req.json();
 
   const parsed = productSchema.safeParse(body);
@@ -83,14 +169,16 @@ export const POST = handle(async (req: Request) => {
 
   const b = parsed.data;
 
-  const existing = await prisma.product.findUnique({
-    where: {
-      slug: b.slug,
-    },
-    select: {
-      id: true,
-    },
-  });
+  const existing =
+    await prisma.product.findUnique({
+      where: {
+        slug: b.slug,
+      },
+
+      select: {
+        id: true,
+      },
+    });
 
   if (existing) {
     throw new ApiError(
@@ -100,51 +188,93 @@ export const POST = handle(async (req: Request) => {
     );
   }
 
-  const product = await prisma.product.create({
-    data: {
-      name: b.name,
-      slug: b.slug,
-      description: b.description,
-      features: b.features,
-      requirements: b.requirements || null,
-      price: b.price,
-      discountPercent: b.discountPercent,
-      currency: b.currency,
-      status: b.status,
-      featured: b.featured,
-      licenseType: b.licenseType,
-      licenseMode: b.licenseMode,
-      sourceMode: b.sourceMode,
-      freeDownloadUrl: b.freeDownloadUrl || null,
-      externalDownloadUrl: b.externalDownloadUrl || null,
-      allowRepurchase: b.allowRepurchase,
-      robloxCompat: b.robloxCompat || null,
-      thumbnailUrl: b.thumbnailUrl || null,
-      sellerId: user.id,
-    },
-    include: {
-      categories: true,
-    },
-  });
+  const seller =
+    await getOrCreateSeller({
+      id: user.id,
+      username: user.username,
+    });
+
+  const product =
+    await prisma.product.create({
+      data: {
+        name: b.name,
+
+        slug: b.slug,
+
+        description:
+          b.description ?? "",
+
+        features: b.features,
+
+        requirements:
+          b.requirements || null,
+
+        price: b.price,
+
+        discountPercent:
+          b.discountPercent,
+
+        currency: b.currency,
+
+        status: b.status,
+
+        featured: b.featured,
+
+        licenseType:
+          b.licenseType,
+
+        licenseMode:
+          b.licenseMode,
+
+        sourceMode:
+          b.sourceMode,
+
+        freeDownloadUrl:
+          b.freeDownloadUrl || null,
+
+        externalDownloadUrl:
+          b.externalDownloadUrl || null,
+
+        allowRepurchase:
+          b.allowRepurchase,
+
+        robloxCompat:
+          b.robloxCompat || null,
+
+        thumbnailUrl:
+          b.thumbnailUrl || null,
+
+        sellerId: seller.id,
+      },
+
+      include: {
+        categories: true,
+      },
+    });
 
   if (b.categoryIds.length > 0) {
     await prisma.productCategory.createMany({
-      data: b.categoryIds.map((categoryId) => ({
-        productId: product.id,
-        categoryId,
-      })),
+      data: b.categoryIds.map(
+        (categoryId) => ({
+          productId: product.id,
+          categoryId,
+        }),
+      ),
+
       skipDuplicates: true,
     });
   }
 
-  const result = await prisma.product.findUnique({
-    where: {
-      id: product.id,
-    },
-    include: {
-      categories: true,
-    },
-  });
+  const result =
+    await prisma.product.findUnique({
+      where: {
+        id: product.id,
+      },
+
+      include: {
+        categories: true,
+      },
+    });
 
   return ok(result);
 });
@@ -152,7 +282,7 @@ export const POST = handle(async (req: Request) => {
 export const PATCH = handle(async (req: Request) => {
   assertSameOrigin(req);
 
-  await requireAdmin();
+  const user = await requireAdmin();
 
   const body = await req.json();
 
@@ -169,7 +299,8 @@ export const PATCH = handle(async (req: Request) => {
     );
   }
 
-  const parsed = productSchema.safeParse(body);
+  const parsed =
+    productSchema.safeParse(body);
 
   if (!parsed.success) {
     console.error(
@@ -186,14 +317,17 @@ export const PATCH = handle(async (req: Request) => {
 
   const b = parsed.data;
 
-  const existing = await prisma.product.findUnique({
-    where: {
-      id,
-    },
-    select: {
-      id: true,
-    },
-  });
+  const existing =
+    await prisma.product.findUnique({
+      where: {
+        id,
+      },
+
+      select: {
+        id: true,
+        sellerId: true,
+      },
+    });
 
   if (!existing) {
     throw new ApiError(
@@ -203,17 +337,20 @@ export const PATCH = handle(async (req: Request) => {
     );
   }
 
-  const slugOwner = await prisma.product.findFirst({
-    where: {
-      slug: b.slug,
-      NOT: {
-        id,
+  const slugOwner =
+    await prisma.product.findFirst({
+      where: {
+        slug: b.slug,
+
+        NOT: {
+          id,
+        },
       },
-    },
-    select: {
-      id: true,
-    },
-  });
+
+      select: {
+        id: true,
+      },
+    });
 
   if (slugOwner) {
     throw new ApiError(
@@ -223,29 +360,73 @@ export const PATCH = handle(async (req: Request) => {
     );
   }
 
+  let sellerId =
+    existing.sellerId;
+
+  if (!sellerId) {
+    const seller =
+      await getOrCreateSeller({
+        id: user.id,
+        username: user.username,
+      });
+
+    sellerId = seller.id;
+  }
+
   await prisma.product.update({
     where: {
       id,
     },
+
     data: {
       name: b.name,
+
       slug: b.slug,
-      description: b.description,
+
+      description:
+        b.description ?? "",
+
       features: b.features,
-      requirements: b.requirements || null,
+
+      requirements:
+        b.requirements || null,
+
       price: b.price,
-      discountPercent: b.discountPercent,
+
+      discountPercent:
+        b.discountPercent,
+
       currency: b.currency,
+
       status: b.status,
+
       featured: b.featured,
-      licenseType: b.licenseType,
-      licenseMode: b.licenseMode,
-      sourceMode: b.sourceMode,
-      freeDownloadUrl: b.freeDownloadUrl || null,
-      externalDownloadUrl: b.externalDownloadUrl || null,
-      allowRepurchase: b.allowRepurchase,
-      robloxCompat: b.robloxCompat || null,
-      thumbnailUrl: b.thumbnailUrl || null,
+
+      licenseType:
+        b.licenseType,
+
+      licenseMode:
+        b.licenseMode,
+
+      sourceMode:
+        b.sourceMode,
+
+      freeDownloadUrl:
+        b.freeDownloadUrl || null,
+
+      externalDownloadUrl:
+        b.externalDownloadUrl || null,
+
+      allowRepurchase:
+        b.allowRepurchase,
+
+      robloxCompat:
+        b.robloxCompat || null,
+
+      thumbnailUrl:
+        b.thumbnailUrl || null,
+
+      sellerId,
     },
   });
 
@@ -257,22 +438,27 @@ export const PATCH = handle(async (req: Request) => {
 
   if (b.categoryIds.length > 0) {
     await prisma.productCategory.createMany({
-      data: b.categoryIds.map((categoryId) => ({
-        productId: id,
-        categoryId,
-      })),
+      data: b.categoryIds.map(
+        (categoryId) => ({
+          productId: id,
+          categoryId,
+        }),
+      ),
+
       skipDuplicates: true,
     });
   }
 
-  const product = await prisma.product.findUnique({
-    where: {
-      id,
-    },
-    include: {
-      categories: true,
-    },
-  });
+  const product =
+    await prisma.product.findUnique({
+      where: {
+        id,
+      },
+
+      include: {
+        categories: true,
+      },
+    });
 
   return ok(product);
 });
@@ -282,9 +468,11 @@ export const DELETE = handle(async (req: Request) => {
 
   await requireAdmin();
 
-  const { searchParams } = new URL(req.url);
+  const { searchParams } =
+    new URL(req.url);
 
-  const id = searchParams.get("id")?.trim();
+  const id =
+    searchParams.get("id")?.trim();
 
   if (!id) {
     throw new ApiError(
@@ -294,14 +482,16 @@ export const DELETE = handle(async (req: Request) => {
     );
   }
 
-  const product = await prisma.product.findUnique({
-    where: {
-      id,
-    },
-    select: {
-      id: true,
-    },
-  });
+  const product =
+    await prisma.product.findUnique({
+      where: {
+        id,
+      },
+
+      select: {
+        id: true,
+      },
+    });
 
   if (!product) {
     throw new ApiError(
