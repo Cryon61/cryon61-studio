@@ -40,26 +40,22 @@ export function ProductEditForm({
   const [form, setForm] = useState({
     name: product.name,
     slug: product.slug,
-    description: product.description,
+    description: product.description || "",
     price: String(product.price),
     discountPercent: String(product.discountPercent),
     categoryId:
       product.categoryId || categories[0]?.id || "",
     thumbnailUrl: product.thumbnailUrl || "",
-
     freeDownloadUrl:
       product.freeDownloadUrl || "",
     externalDownloadUrl:
       product.externalDownloadUrl || "",
-
     features: product.features.join("\n"),
     requirements: product.requirements || "",
     robloxCompat: product.robloxCompat || "",
-
     licenseType: product.licenseType,
     licenseMode: product.licenseMode,
     sourceMode: product.sourceMode,
-
     featured: product.featured,
   });
 
@@ -230,6 +226,43 @@ export function ProductEditForm({
       return;
     }
 
+    const name = form.name.trim();
+    const slug = form.slug.trim();
+    const description =
+      form.description.trim();
+
+    if (!name || !slug) {
+      setMsg(
+        "Name dan slug wajib diisi.",
+      );
+      return;
+    }
+
+    const price = Number(form.price);
+    const discountPercent =
+      Number(form.discountPercent);
+
+    if (
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
+      setMsg("Harga tidak valid.");
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        discountPercent,
+      ) ||
+      discountPercent < 0 ||
+      discountPercent > 100
+    ) {
+      setMsg(
+        "Discount harus antara 0 sampai 100%.",
+      );
+      return;
+    }
+
     setSaving(true);
     setMsg("Saving changes...");
 
@@ -239,28 +272,27 @@ export function ProductEditForm({
         {
           method: "PATCH",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
           credentials: "same-origin",
           body: JSON.stringify({
             id: product.id,
 
-            name: form.name,
-            slug: form.slug,
-            description: form.description,
+            name,
+            slug,
+            description,
 
-            price: Number(form.price),
+            price,
+            discountPercent,
 
-            discountPercent: Number(
-              form.discountPercent,
-            ),
-
-            categoryIds: form.categoryId
-              ? [form.categoryId]
-              : [],
+            categoryIds:
+              form.categoryId
+                ? [form.categoryId]
+                : [],
 
             thumbnailUrl:
-              form.thumbnailUrl,
+              form.thumbnailUrl.trim(),
 
             freeDownloadUrl:
               form.freeDownloadUrl.trim(),
@@ -268,18 +300,19 @@ export function ProductEditForm({
             externalDownloadUrl:
               form.externalDownloadUrl.trim(),
 
-            features: form.features
-              .split("\n")
-              .map((item) =>
-                item.trim(),
-              )
-              .filter(Boolean),
+            features:
+              form.features
+                .split("\n")
+                .map((item) =>
+                  item.trim(),
+                )
+                .filter(Boolean),
 
             requirements:
-              form.requirements,
+              form.requirements.trim(),
 
             robloxCompat:
-              form.robloxCompat,
+              form.robloxCompat.trim(),
 
             licenseType:
               form.licenseType,
@@ -294,7 +327,9 @@ export function ProductEditForm({
               form.featured,
 
             allowRepurchase: false,
+
             currency: "IDR",
+
             status: "PUBLISHED",
           }),
         },
@@ -611,9 +646,10 @@ export function ProductEditForm({
         </div>
       </div>
 
+      {/* DESCRIPTION - OPTIONAL */}
       <textarea
         className="input min-h-32 md:col-span-2"
-        placeholder="Description"
+        placeholder="Description (optional)"
         value={form.description}
         onChange={(e) =>
           update(
@@ -621,7 +657,6 @@ export function ProductEditForm({
             e.target.value,
           )
         }
-        required
       />
 
       <textarea
@@ -835,7 +870,10 @@ export function ProductEditForm({
       </div>
 
       {msg && (
-        <p className="text-sm text-slate-400 md:col-span-2">
+        <p
+          className="text-sm text-slate-400 md:col-span-2"
+          aria-live="polite"
+        >
           {msg}
         </p>
       )}

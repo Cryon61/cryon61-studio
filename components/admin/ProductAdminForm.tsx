@@ -1,65 +1,180 @@
-'use client';
+"use client";
 
-import {useState} from 'react';
+import { useState } from "react";
 
 export function ProductAdminForm({
-  categories
-}:{
-  categories:{id:string,name:string}[];
-}){
-  const [form,setForm]=useState({
-    name:'',
-    slug:'',
-    description:'',
-    price:'',
-    categoryId:categories[0]?.id||'',
-    thumbnailUrl:'',
-    features:'',
-    requirements:'',
-    robloxCompat:'',
-    discountPercent:'0',
-    licenseType:'PERSONAL',
-    licenseMode:'NONE' as 'NONE'|'REQUIRED'|'OPTIONAL',
-    sourceMode:'CLOSED_SOURCE' as 'CLOSED_SOURCE'|'OPEN_SOURCE',
-    featured:false
+  categories,
+}: {
+  categories: { id: string; name: string }[];
+}) {
+  const [form, setForm] = useState({
+    name: "",
+    slug: "",
+    description: "",
+    price: "",
+    categoryId: categories[0]?.id || "",
+    thumbnailUrl: "",
+    features: "",
+    requirements: "",
+    robloxCompat: "",
+    discountPercent: "0",
+    licenseType: "PERSONAL",
+    licenseMode: "NONE" as "NONE" | "REQUIRED" | "OPTIONAL",
+    sourceMode: "CLOSED_SOURCE" as
+      | "CLOSED_SOURCE"
+      | "OPEN_SOURCE",
+    featured: false,
   });
 
-  const [msg,setMsg]=useState('');
+  const [msg, setMsg] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  async function submit(e:React.FormEvent){
+  function update(
+    field: keyof typeof form,
+    value: string | boolean,
+  ) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setMsg('Saving...');
 
-    try{
-      const r=await fetch('/api/admin/products',{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json'
+    const name = form.name.trim();
+    const slug = form.slug.trim();
+    const description = form.description.trim();
+
+    const price = Number(form.price);
+    const discountPercent = Number(form.discountPercent);
+
+    // Description TIDAK wajib.
+    if (!name || !slug) {
+      setMsg("Name dan slug wajib diisi.");
+      return;
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+      setMsg("Harga tidak valid.");
+      return;
+    }
+
+    if (
+      !Number.isFinite(discountPercent) ||
+      discountPercent < 0 ||
+      discountPercent > 100
+    ) {
+      setMsg("Discount harus antara 0 sampai 100%.");
+      return;
+    }
+
+    setSaving(true);
+    setMsg("Saving...");
+
+    try {
+      const response = await fetch(
+        "/api/admin/products",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            name,
+            slug,
+            description,
+
+            price,
+            discountPercent,
+
+            categoryIds: form.categoryId
+              ? [form.categoryId]
+              : [],
+
+            thumbnailUrl:
+              form.thumbnailUrl.trim(),
+
+            freeDownloadUrl: "",
+
+            externalDownloadUrl: "",
+
+            features: form.features
+              .split("\n")
+              .map((item) => item.trim())
+              .filter(Boolean),
+
+            requirements:
+              form.requirements.trim(),
+
+            robloxCompat:
+              form.robloxCompat.trim(),
+
+            licenseType:
+              form.licenseType,
+
+            licenseMode:
+              form.licenseMode,
+
+            sourceMode:
+              form.sourceMode,
+
+            featured:
+              form.featured,
+
+            allowRepurchase: false,
+
+            currency: "IDR",
+
+            status: "PUBLISHED",
+          }),
         },
-        body:JSON.stringify({
-          ...form,
-          price:Number(form.price),
-          discountPercent:Number(form.discountPercent),
-          features:form.features
-            .split('\n')
-            .map(x=>x.trim())
-            .filter(Boolean)
-        })
-      });
+      );
 
-      const j=await r.json();
+      const result =
+        await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setMsg(
+          result.error?.message ||
+            result.message ||
+            "Failed to create product.",
+        );
+        return;
+      }
 
       setMsg(
-        r.ok
-          ? 'Product created. Refresh the page.'
-          : j.error?.message||'Failed'
+        "Product created successfully.",
       );
-    }catch{
-      setMsg('Failed to create product.');
+
+      setForm({
+        name: "",
+        slug: "",
+        description: "",
+        price: "",
+        categoryId:
+          categories[0]?.id || "",
+        thumbnailUrl: "",
+        features: "",
+        requirements: "",
+        robloxCompat: "",
+        discountPercent: "0",
+        licenseType: "PERSONAL",
+        licenseMode: "NONE",
+        sourceMode: "CLOSED_SOURCE",
+        featured: false,
+      });
+    } catch {
+      setMsg(
+        "Failed to create product.",
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
-  return(
+  return (
     <form
       onSubmit={submit}
       className="card grid gap-4 p-6 md:grid-cols-2"
@@ -72,18 +187,20 @@ export function ProductAdminForm({
         className="input"
         placeholder="Name"
         value={form.name}
-        onChange={e=>
-          setForm({...form,name:e.target.value})
+        onChange={(e) =>
+          update("name", e.target.value)
         }
+        required
       />
 
       <input
         className="input"
         placeholder="slug"
         value={form.slug}
-        onChange={e=>
-          setForm({...form,slug:e.target.value})
+        onChange={(e) =>
+          update("slug", e.target.value)
         }
+        required
       />
 
       <input
@@ -92,8 +209,8 @@ export function ProductAdminForm({
         type="number"
         min="0"
         value={form.price}
-        onChange={e=>
-          setForm({...form,price:e.target.value})
+        onChange={(e) =>
+          update("price", e.target.value)
         }
       />
 
@@ -104,21 +221,30 @@ export function ProductAdminForm({
         min="0"
         max="100"
         value={form.discountPercent}
-        onChange={e=>
-          setForm({...form,discountPercent:e.target.value})
+        onChange={(e) =>
+          update(
+            "discountPercent",
+            e.target.value,
+          )
         }
       />
 
       <select
         className="input"
         value={form.categoryId}
-        onChange={e=>
-          setForm({...form,categoryId:e.target.value})
+        onChange={(e) =>
+          update(
+            "categoryId",
+            e.target.value,
+          )
         }
       >
-        {categories.map(c=>(
-          <option key={c.id} value={c.id}>
-            {c.name}
+        {categories.map((category) => (
+          <option
+            key={category.id}
+            value={category.id}
+          >
+            {category.name}
           </option>
         ))}
       </select>
@@ -127,8 +253,11 @@ export function ProductAdminForm({
         className="input"
         placeholder="Thumbnail URL"
         value={form.thumbnailUrl}
-        onChange={e=>
-          setForm({...form,thumbnailUrl:e.target.value})
+        onChange={(e) =>
+          update(
+            "thumbnailUrl",
+            e.target.value,
+          )
         }
       />
 
@@ -136,8 +265,11 @@ export function ProductAdminForm({
         className="input min-h-28 md:col-span-2"
         placeholder="Description"
         value={form.description}
-        onChange={e=>
-          setForm({...form,description:e.target.value})
+        onChange={(e) =>
+          update(
+            "description",
+            e.target.value,
+          )
         }
       />
 
@@ -145,8 +277,11 @@ export function ProductAdminForm({
         className="input min-h-24"
         placeholder="Features, one per line"
         value={form.features}
-        onChange={e=>
-          setForm({...form,features:e.target.value})
+        onChange={(e) =>
+          update(
+            "features",
+            e.target.value,
+          )
         }
       />
 
@@ -154,8 +289,11 @@ export function ProductAdminForm({
         className="input min-h-24"
         placeholder="Requirements"
         value={form.requirements}
-        onChange={e=>
-          setForm({...form,requirements:e.target.value})
+        onChange={(e) =>
+          update(
+            "requirements",
+            e.target.value,
+          )
         }
       />
 
@@ -163,24 +301,32 @@ export function ProductAdminForm({
         className="input"
         placeholder="Roblox compatibility"
         value={form.robloxCompat}
-        onChange={e=>
-          setForm({...form,robloxCompat:e.target.value})
+        onChange={(e) =>
+          update(
+            "robloxCompat",
+            e.target.value,
+          )
         }
       />
 
       <select
         className="input"
         value={form.licenseType}
-        onChange={e=>
-          setForm({...form,licenseType:e.target.value})
+        onChange={(e) =>
+          update(
+            "licenseType",
+            e.target.value,
+          )
         }
       >
         <option value="PERSONAL">
           Personal License
         </option>
+
         <option value="COMMERCIAL">
           Commercial License
         </option>
+
         <option value="UNLIMITED">
           Unlimited License
         </option>
@@ -189,20 +335,24 @@ export function ProductAdminForm({
       <select
         className="input"
         value={form.licenseMode}
-        onChange={e=>
-          setForm({
-            ...form,
-            licenseMode:e.target.value as
-              'NONE'|'REQUIRED'|'OPTIONAL'
-          })
+        onChange={(e) =>
+          update(
+            "licenseMode",
+            e.target.value as
+              | "NONE"
+              | "REQUIRED"
+              | "OPTIONAL",
+          )
         }
       >
         <option value="NONE">
           No License
         </option>
+
         <option value="REQUIRED">
           License Required
         </option>
+
         <option value="OPTIONAL">
           License Optional
         </option>
@@ -211,17 +361,19 @@ export function ProductAdminForm({
       <select
         className="input"
         value={form.sourceMode}
-        onChange={e=>
-          setForm({
-            ...form,
-            sourceMode:e.target.value as
-              'CLOSED_SOURCE'|'OPEN_SOURCE'
-          })
+        onChange={(e) =>
+          update(
+            "sourceMode",
+            e.target.value as
+              | "CLOSED_SOURCE"
+              | "OPEN_SOURCE",
+          )
         }
       >
         <option value="CLOSED_SOURCE">
           Closed Source
         </option>
+
         <option value="OPEN_SOURCE">
           Open Source
         </option>
@@ -237,12 +389,13 @@ export function ProductAdminForm({
             <span className="text-slate-500">
               License
             </span>
+
             <div className="mt-1 font-medium text-white">
-              {form.licenseMode==='NONE'
-                ? 'No License'
-                : form.licenseMode==='REQUIRED'
-                  ? 'License Required'
-                  : 'License Optional'}
+              {form.licenseMode === "NONE"
+                ? "No License"
+                : form.licenseMode === "REQUIRED"
+                  ? "License Required"
+                  : "License Optional"}
             </div>
           </div>
 
@@ -250,10 +403,11 @@ export function ProductAdminForm({
             <span className="text-slate-500">
               Source
             </span>
+
             <div className="mt-1 font-medium text-white">
-              {form.sourceMode==='OPEN_SOURCE'
-                ? 'Open Source'
-                : 'Closed Source'}
+              {form.sourceMode === "OPEN_SOURCE"
+                ? "Open Source"
+                : "Closed Source"}
             </div>
           </div>
 
@@ -261,6 +415,7 @@ export function ProductAdminForm({
             <span className="text-slate-500">
               License Type
             </span>
+
             <div className="mt-1 font-medium text-white">
               {form.licenseType}
             </div>
@@ -272,11 +427,11 @@ export function ProductAdminForm({
         <input
           type="checkbox"
           checked={form.featured}
-          onChange={e=>
-            setForm({
-              ...form,
-              featured:e.target.checked
-            })
+          onChange={(e) =>
+            update(
+              "featured",
+              e.target.checked,
+            )
           }
         />
 
@@ -285,13 +440,19 @@ export function ProductAdminForm({
 
       <button
         type="submit"
-        className="btn-primary md:col-span-2"
+        disabled={saving}
+        className="btn-primary md:col-span-2 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Create product
+        {saving
+          ? "Creating..."
+          : "Create product"}
       </button>
 
-      {msg&&(
-        <p className="text-sm text-slate-400 md:col-span-2">
+      {msg && (
+        <p
+          className="text-sm text-slate-400 md:col-span-2"
+          aria-live="polite"
+        >
           {msg}
         </p>
       )}
