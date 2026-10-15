@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Banner = {
   id: string;
@@ -27,10 +27,15 @@ export default function AdminBannersPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function loadBanners() {
     setLoading(true);
@@ -46,7 +51,7 @@ export default function AdminBannersPage() {
 
       if (!response.ok) {
         throw new Error(
-          data?.message || "Gagal mengambil banner."
+          data?.message || "Gagal mengambil banner.",
         );
       }
 
@@ -55,7 +60,7 @@ export default function AdminBannersPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Gagal mengambil banner."
+          : "Gagal mengambil banner.",
       );
     } finally {
       setLoading(false);
@@ -71,20 +76,27 @@ export default function AdminBannersPage() {
     setEditingId(null);
     setError("");
     setMessage("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   function editBanner(banner: Banner) {
     setEditingId(banner.id);
 
     setForm({
-      title: banner.title,
+      title: banner.title || "",
       description: banner.description || "",
-      imageUrl: banner.imageUrl,
+      imageUrl: banner.imageUrl || "",
       buttonText: banner.buttonText || "",
       buttonLink: banner.buttonLink || "",
-      sortOrder: String(banner.sortOrder),
+      sortOrder: String(banner.sortOrder ?? 0),
       active: banner.active,
     });
+
+    setError("");
+    setMessage("");
 
     window.scrollTo({
       top: 0,
@@ -92,8 +104,109 @@ export default function AdminBannersPage() {
     });
   }
 
-  async function saveBanner(event: React.FormEvent) {
+  async function uploadImage(file: File) {
+    setUploading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const allowedTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error(
+          "Format gambar harus PNG, JPG, atau WEBP.",
+        );
+      }
+
+      if (file.size <= 0) {
+        throw new Error("File gambar kosong.");
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error(
+          "Ukuran gambar maksimal 5 MB.",
+        );
+      }
+
+      const formData = new FormData();
+
+      formData.append("file", file);
+
+      const response = await fetch("/api/admin/upload", {
+        method: "POST",
+        credentials: "same-origin",
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            data?.data?.message ||
+            "Gagal mengupload gambar.",
+        );
+      }
+
+      const url = String(
+        data?.url ||
+          data?.data?.url ||
+          data?.result?.url ||
+          ""
+      ).trim();
+
+      if (!url) {
+        throw new Error(
+          "URL gambar dari server tidak ditemukan.",
+        );
+      }
+
+      setForm((current) => ({
+        ...current,
+        imageUrl: url,
+      }));
+
+      setMessage("Gambar berhasil diupload.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Gagal mengupload gambar.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleFileChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    await uploadImage(file);
+  }
+
+  async function saveBanner(
+    event: React.FormEvent,
+  ) {
     event.preventDefault();
+
+    // Hanya gambar yang wajib diisi.
+    if (!form.imageUrl.trim()) {
+      setError(
+        "Silakan pilih dan upload gambar banner.",
+      );
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -101,48 +214,62 @@ export default function AdminBannersPage() {
 
     try {
       const payload = {
-        ...form,
+        title: form.title.trim(),
+        description:
+          form.description.trim() || null,
+        imageUrl: form.imageUrl.trim(),
+        buttonText:
+          form.buttonText.trim() || null,
+        buttonLink:
+          form.buttonLink.trim() || null,
         sortOrder: Number(form.sortOrder) || 0,
+        active: form.active,
       };
 
-      const response = await fetch("/api/admin/banners", {
-        method: editingId ? "PATCH" : "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+      const response = await fetch(
+        "/api/admin/banners",
+        {
+          method: editingId ? "PATCH" : "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(
+            editingId
+              ? {
+                  id: editingId,
+                  ...payload,
+                }
+              : payload,
+          ),
         },
-        body: JSON.stringify(
-          editingId
-            ? {
-                id: editingId,
-                ...payload,
-              }
-            : payload
-        ),
-      });
+      );
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
         throw new Error(
-          data?.message || "Gagal menyimpan banner."
+          data?.message ||
+            data?.error ||
+            "Gagal menyimpan banner.",
         );
       }
 
       setMessage(
         editingId
           ? "Banner berhasil diperbarui."
-          : "Banner berhasil ditambahkan."
+          : "Banner berhasil ditambahkan.",
       );
 
       resetForm();
+
       await loadBanners();
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Gagal menyimpan banner."
+          : "Gagal menyimpan banner.",
       );
     } finally {
       setSaving(false);
@@ -151,26 +278,32 @@ export default function AdminBannersPage() {
 
   async function toggleBanner(banner: Banner) {
     setError("");
+    setMessage("");
 
     try {
-      const response = await fetch("/api/admin/banners", {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+      const response = await fetch(
+        "/api/admin/banners",
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            id: banner.id,
+            active: !banner.active,
+          }),
         },
-        body: JSON.stringify({
-          id: banner.id,
-          active: !banner.active,
-        }),
-      });
+      );
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
         throw new Error(
-          data?.message || "Gagal mengubah status banner."
+          data?.message ||
+            data?.error ||
+            "Gagal mengubah status banner.",
         );
       }
 
@@ -179,14 +312,14 @@ export default function AdminBannersPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Gagal mengubah status banner."
+          : "Gagal mengubah status banner.",
       );
     }
   }
 
   async function deleteBanner(banner: Banner) {
     const confirmed = window.confirm(
-      `Hapus banner "${banner.title}"?`
+      `Hapus banner "${banner.title || "Tanpa Judul"}"?`,
     );
 
     if (!confirmed) {
@@ -194,24 +327,29 @@ export default function AdminBannersPage() {
     }
 
     setError("");
+    setMessage("");
 
     try {
       const response = await fetch(
-        `/api/admin/banners?id=${encodeURIComponent(banner.id)}`,
+        `/api/admin/banners?id=${encodeURIComponent(
+          banner.id,
+        )}`,
         {
           method: "DELETE",
           credentials: "same-origin",
           headers: {
             Accept: "application/json",
           },
-        }
+        },
       );
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
         throw new Error(
-          data?.message || "Gagal menghapus banner."
+          data?.message ||
+            data?.error ||
+            "Gagal menghapus banner.",
         );
       }
 
@@ -224,7 +362,7 @@ export default function AdminBannersPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Gagal menghapus banner."
+          : "Gagal menghapus banner.",
       );
     }
   }
@@ -237,8 +375,8 @@ export default function AdminBannersPage() {
         </h1>
 
         <p className="mt-2 text-sm text-slate-500">
-          Kelola banyak banner homepage. Banner aktif akan
-          ditampilkan sebagai slideshow otomatis.
+          Kelola banner homepage dengan upload gambar
+          langsung dari perangkat.
         </p>
       </div>
 
@@ -258,7 +396,7 @@ export default function AdminBannersPage() {
         onSubmit={saveBanner}
         className="card mb-10 p-5 sm:p-6"
       >
-        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-white">
               {editingId
@@ -267,7 +405,8 @@ export default function AdminBannersPage() {
             </h2>
 
             <p className="mt-1 text-xs text-slate-500">
-              Kamu bisa membuat banner sebanyak yang kamu mau.
+              Judul, deskripsi, dan tombol boleh
+              dikosongkan.
             </p>
           </div>
 
@@ -286,100 +425,131 @@ export default function AdminBannersPage() {
           <div>
             <label className="mb-2 block text-sm font-medium text-white">
               Judul
+              <span className="ml-2 text-xs font-normal text-slate-500">
+                (Opsional)
+              </span>
             </label>
 
             <input
-              required
               value={form.title}
-              onChange={(e) =>
+              onChange={(event) =>
                 setForm({
                   ...form,
-                  title: e.target.value,
+                  title: event.target.value,
                 })
               }
               className="input w-full"
-              placeholder="Contoh: Fishing System V3"
+              placeholder="Boleh dikosongkan"
             />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-white">
               Deskripsi
+              <span className="ml-2 text-xs font-normal text-slate-500">
+                (Opsional)
+              </span>
             </label>
 
             <textarea
               value={form.description}
-              onChange={(e) =>
+              onChange={(event) =>
                 setForm({
                   ...form,
-                  description: e.target.value,
+                  description: event.target.value,
                 })
               }
               className="input min-h-28 w-full"
-              placeholder="Deskripsi singkat banner..."
+              placeholder="Boleh dikosongkan"
             />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-white">
-              URL Gambar
+              Gambar Banner
+              <span className="ml-2 text-xs font-normal text-red-400">
+                (Wajib)
+              </span>
             </label>
 
-            <input
-              required
-              type="url"
-              value={form.imageUrl}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  imageUrl: e.target.value,
-                })
-              }
-              className="input w-full"
-              placeholder="https://..."
-            />
+            <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleFileChange}
+                className="hidden"
+              />
 
-            {form.imageUrl && (
-              <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
-                <img
-                  src={form.imageUrl}
-                  alt="Preview banner"
-                  className="h-48 w-full object-cover"
-                />
-              </div>
-            )}
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() =>
+                  fileInputRef.current?.click()
+                }
+                className="btn-primary w-full sm:w-fit"
+              >
+                {uploading
+                  ? "Mengupload..."
+                  : form.imageUrl
+                    ? "Ganti Gambar"
+                    : "Pilih Gambar"}
+              </button>
+
+              <p className="mt-2 text-xs text-slate-500">
+                PNG, JPG, atau WEBP. Maksimal 5 MB.
+              </p>
+
+              {form.imageUrl && (
+                <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                  <div className="aspect-[16/6] w-full">
+                    <img
+                      src={form.imageUrl}
+                      alt="Preview banner"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-white">
                 Teks Tombol
+                <span className="ml-2 text-xs font-normal text-slate-500">
+                  (Opsional)
+                </span>
               </label>
 
               <input
                 value={form.buttonText}
-                onChange={(e) =>
+                onChange={(event) =>
                   setForm({
                     ...form,
-                    buttonText: e.target.value,
+                    buttonText: event.target.value,
                   })
                 }
                 className="input w-full"
-                placeholder="Lihat Produk"
+                placeholder="Boleh dikosongkan"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-white">
                 Link Tombol
+                <span className="ml-2 text-xs font-normal text-slate-500">
+                  (Opsional)
+                </span>
               </label>
 
               <input
                 value={form.buttonLink}
-                onChange={(e) =>
+                onChange={(event) =>
                   setForm({
                     ...form,
-                    buttonLink: e.target.value,
+                    buttonLink: event.target.value,
                   })
                 }
                 className="input w-full"
@@ -396,15 +566,15 @@ export default function AdminBannersPage() {
 
               <input
                 type="number"
+                min="0"
                 value={form.sortOrder}
-                onChange={(e) =>
+                onChange={(event) =>
                   setForm({
                     ...form,
-                    sortOrder: e.target.value,
+                    sortOrder: event.target.value,
                   })
                 }
                 className="input w-full"
-                min="0"
               />
             </div>
 
@@ -412,10 +582,10 @@ export default function AdminBannersPage() {
               <input
                 type="checkbox"
                 checked={form.active}
-                onChange={(e) =>
+                onChange={(event) =>
                   setForm({
                     ...form,
-                    active: e.target.checked,
+                    active: event.target.checked,
                   })
                 }
               />
@@ -428,7 +598,7 @@ export default function AdminBannersPage() {
 
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || uploading}
             className="btn-primary w-full sm:w-fit"
           >
             {saving
@@ -470,7 +640,7 @@ export default function AdminBannersPage() {
                   <div className="aspect-video bg-black/30 lg:aspect-auto">
                     <img
                       src={banner.imageUrl}
-                      alt={banner.title}
+                      alt={banner.title || "Banner"}
                       className="h-full min-h-48 w-full object-cover"
                     />
                   </div>
@@ -480,7 +650,8 @@ export default function AdminBannersPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-bold text-white">
-                            {banner.title}
+                            {banner.title ||
+                              "Tanpa Judul"}
                           </h3>
 
                           <span
@@ -508,10 +679,24 @@ export default function AdminBannersPage() {
                       </span>
                     </div>
 
+                    {(banner.buttonText ||
+                      banner.buttonLink) && (
+                      <div className="mt-3 text-xs text-slate-500">
+                        Tombol:{" "}
+                        {banner.buttonText ||
+                          "Tanpa teks"}{" "}
+                        →{" "}
+                        {banner.buttonLink ||
+                          "Tanpa link"}
+                      </div>
+                    )}
+
                     <div className="mt-5 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => editBanner(banner)}
+                        onClick={() =>
+                          editBanner(banner)
+                        }
                         className="btn-ghost"
                       >
                         Edit
@@ -519,7 +704,9 @@ export default function AdminBannersPage() {
 
                       <button
                         type="button"
-                        onClick={() => toggleBanner(banner)}
+                        onClick={() =>
+                          toggleBanner(banner)
+                        }
                         className="btn-ghost"
                       >
                         {banner.active
@@ -529,7 +716,9 @@ export default function AdminBannersPage() {
 
                       <button
                         type="button"
-                        onClick={() => deleteBanner(banner)}
+                        onClick={() =>
+                          deleteBanner(banner)
+                        }
                         className="btn-ghost !text-red-400"
                       >
                         Hapus

@@ -55,7 +55,7 @@ export const POST = handle(async (req: Request) => {
     );
   }
 
-  const filename = `products/${randomUUID()}.${extension}`;
+  const filename = `banners/${randomUUID()}.${extension}`;
 
   const blob = await put(filename, file, {
     access: "public",
