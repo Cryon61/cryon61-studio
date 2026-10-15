@@ -1,6 +1,5 @@
+import { put } from "@vercel/blob";
 import { randomUUID } from "crypto";
-import path from "path";
-import { mkdir, writeFile } from "fs/promises";
 
 import { requireRole } from "@/lib/auth/session";
 import { ApiError, handle, ok } from "@/lib/utils/api";
@@ -56,34 +55,15 @@ export const POST = handle(async (req: Request) => {
     );
   }
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
+  const filename = `products/${randomUUID()}.${extension}`;
 
-  const filename = `${randomUUID()}.${extension}`;
-
-  const uploadDirectory = path.join(
-    process.cwd(),
-    "public",
-    "uploads",
-    "products",
-  );
-
-  await mkdir(uploadDirectory, {
-    recursive: true,
+  const blob = await put(filename, file, {
+    access: "public",
+    addRandomSuffix: false,
   });
 
-  const filePath = path.join(
-    uploadDirectory,
-    filename,
-  );
-
-  await writeFile(filePath, buffer);
-
-  const url =
-    `/uploads/products/${filename}`;
-
   return ok({
-    url,
+    url: blob.url,
     filename,
     size: file.size,
     type: file.type,
