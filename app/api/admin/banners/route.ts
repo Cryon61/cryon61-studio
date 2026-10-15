@@ -12,13 +12,16 @@ async function requireAdmin() {
   }
 }
 
-function errorResponse(message: string, status = 400) {
+function errorResponse(
+  message: string,
+  status = 400,
+) {
   return NextResponse.json(
     {
       ok: false,
       message,
     },
-    { status }
+    { status },
   );
 }
 
@@ -38,7 +41,10 @@ export async function GET() {
       banners,
     });
   } catch {
-    return errorResponse("Tidak memiliki akses.", 403);
+    return errorResponse(
+      "Tidak memiliki akses.",
+      403,
+    );
   }
 }
 
@@ -48,13 +54,20 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const title = String(body.title ?? "").trim();
+    const title =
+      body.title == null
+        ? ""
+        : String(body.title).trim();
+
     const description =
       body.description == null
         ? null
         : String(body.description).trim() || null;
 
-    const imageUrl = String(body.imageUrl ?? "").trim();
+    const imageUrl =
+      body.imageUrl == null
+        ? ""
+        : String(body.imageUrl).trim();
 
     const buttonText =
       body.buttonText == null
@@ -66,7 +79,9 @@ export async function POST(req: Request) {
         ? null
         : String(body.buttonLink).trim() || null;
 
-    const sortOrder = Number.isFinite(Number(body.sortOrder))
+    const sortOrder = Number.isFinite(
+      Number(body.sortOrder),
+    )
       ? Number(body.sortOrder)
       : 0;
 
@@ -75,12 +90,11 @@ export async function POST(req: Request) {
         ? body.active
         : true;
 
-    if (!title) {
-      return errorResponse("Title wajib diisi.", 422);
-    }
-
     if (!imageUrl) {
-      return errorResponse("Image URL wajib diisi.", 422);
+      return errorResponse(
+        "Gambar banner wajib diisi.",
+        422,
+      );
     }
 
     const banner = await prisma.heroBanner.create({
@@ -100,10 +114,13 @@ export async function POST(req: Request) {
         ok: true,
         banner,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch {
-    return errorResponse("Gagal membuat banner.", 500);
+    return errorResponse(
+      "Gagal membuat banner.",
+      500,
+    );
   }
 }
 
@@ -116,15 +133,22 @@ export async function PATCH(req: Request) {
     const id = String(body.id ?? "").trim();
 
     if (!id) {
-      return errorResponse("Banner id wajib diisi.", 422);
+      return errorResponse(
+        "Banner id wajib diisi.",
+        422,
+      );
     }
 
-    const existing = await prisma.heroBanner.findUnique({
-      where: { id },
-    });
+    const existing =
+      await prisma.heroBanner.findUnique({
+        where: { id },
+      });
 
     if (!existing) {
-      return errorResponse("Banner tidak ditemukan.", 404);
+      return errorResponse(
+        "Banner tidak ditemukan.",
+        404,
+      );
     }
 
     const data: {
@@ -138,13 +162,10 @@ export async function PATCH(req: Request) {
     } = {};
 
     if (body.title !== undefined) {
-      const title = String(body.title).trim();
-
-      if (!title) {
-        return errorResponse("Title wajib diisi.", 422);
-      }
-
-      data.title = title;
+      data.title =
+        body.title == null
+          ? ""
+          : String(body.title).trim();
     }
 
     if (body.description !== undefined) {
@@ -155,10 +176,16 @@ export async function PATCH(req: Request) {
     }
 
     if (body.imageUrl !== undefined) {
-      const imageUrl = String(body.imageUrl).trim();
+      const imageUrl =
+        body.imageUrl == null
+          ? ""
+          : String(body.imageUrl).trim();
 
       if (!imageUrl) {
-        return errorResponse("Image URL wajib diisi.", 422);
+        return errorResponse(
+          "Gambar banner wajib diisi.",
+          422,
+        );
       }
 
       data.imageUrl = imageUrl;
@@ -184,7 +211,7 @@ export async function PATCH(req: Request) {
       if (!Number.isFinite(sortOrder)) {
         return errorResponse(
           "Sort order tidak valid.",
-          422
+          422,
         );
       }
 
@@ -195,17 +222,18 @@ export async function PATCH(req: Request) {
       if (typeof body.active !== "boolean") {
         return errorResponse(
           "Active harus berupa boolean.",
-          422
+          422,
         );
       }
 
       data.active = body.active;
     }
 
-    const banner = await prisma.heroBanner.update({
-      where: { id },
-      data,
-    });
+    const banner =
+      await prisma.heroBanner.update({
+        where: { id },
+        data,
+      });
 
     return NextResponse.json({
       ok: true,
@@ -214,7 +242,7 @@ export async function PATCH(req: Request) {
   } catch {
     return errorResponse(
       "Gagal memperbarui banner.",
-      500
+      500,
     );
   }
 }
@@ -224,21 +252,28 @@ export async function DELETE(req: Request) {
     await requireAdmin();
 
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id")?.trim();
+
+    const id = searchParams
+      .get("id")
+      ?.trim();
 
     if (!id) {
-      return errorResponse("Banner id wajib diisi.", 422);
+      return errorResponse(
+        "Banner id wajib diisi.",
+        422,
+      );
     }
 
-    const existing = await prisma.heroBanner.findUnique({
-      where: { id },
-      select: { id: true },
-    });
+    const existing =
+      await prisma.heroBanner.findUnique({
+        where: { id },
+        select: { id: true },
+      });
 
     if (!existing) {
       return errorResponse(
         "Banner tidak ditemukan.",
-        404
+        404,
       );
     }
 
@@ -253,7 +288,7 @@ export async function DELETE(req: Request) {
   } catch {
     return errorResponse(
       "Gagal menghapus banner.",
-      500
+      500,
     );
   }
 }
