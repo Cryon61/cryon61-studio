@@ -1,19 +1,30 @@
-import Link from 'next/link';
-import { Logo } from '@/components/ui/Logo';
-import { getCurrentUser } from '@/lib/auth/session';
+import Link from "next/link";
+
+import { Logo } from "@/components/ui/Logo";
+import { MobileMenu } from "@/components/site/MobileMenu";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export async function Navbar() {
   const user = await getCurrentUser();
 
   const isAdmin =
-    user?.role === 'ADMIN' ||
-    user?.role === 'OWNER';
+    user?.role === "ADMIN" ||
+    user?.role === "OWNER";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line/80 bg-bg/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-5 px-4 sm:px-6">
-        <Logo size={34} />
+    <header className="sticky top-0 z-40 border-b border-line/80 bg-bg/95 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-3 sm:px-6">
+        {/* Desktop logo */}
+        <div className="hidden sm:block">
+          <Logo size={34} />
+        </div>
 
+        {/* Mobile logo */}
+        <div className="sm:hidden">
+          <Logo size={32} withText={false} />
+        </div>
+
+        {/* Desktop navigation */}
         <nav className="hidden items-center gap-5 text-sm text-slate-400 lg:flex">
           <Link
             className="hover:text-white"
@@ -44,6 +55,7 @@ export async function Navbar() {
           </Link>
         </nav>
 
+        {/* Desktop search */}
         <form
           action="/marketplace"
           className="ml-auto hidden max-w-sm flex-1 md:flex"
@@ -56,9 +68,10 @@ export async function Navbar() {
           />
         </form>
 
-        <div className="flex items-center gap-2 text-sm">
+        {/* Desktop actions */}
+        <div className="hidden items-center gap-2 text-sm lg:flex">
           <Link
-            className="hidden rounded-lg px-3 py-2 text-slate-300 hover:bg-card sm:block"
+            className="rounded-lg px-3 py-2 text-slate-300 hover:bg-card"
             href="/wishlist"
           >
             ♡
@@ -95,6 +108,21 @@ export async function Navbar() {
               Login
             </Link>
           )}
+        </div>
+
+        {/* Mobile actions */}
+        <div className="ml-auto flex items-center gap-2 lg:hidden">
+          <Link
+            href="/cart"
+            className="rounded-xl border border-line bg-card px-3 py-2 text-xs font-semibold text-slate-200"
+          >
+            Cart
+          </Link>
+
+          <MobileMenu
+            isAdmin={isAdmin}
+            username={user?.username}
+          />
         </div>
       </div>
     </header>
