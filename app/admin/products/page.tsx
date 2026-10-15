@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
+
 import { requireRole } from "@/lib/auth/session";
 import { prisma } from "@/lib/database/prisma";
+
 import { Navbar } from "@/components/site/Navbar";
 import { ProductAdminForm } from "@/components/admin/ProductAdminForm";
+import { DeleteProductButton } from "@/components/admin/DeleteProductButton";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +24,14 @@ export default async function AdminProducts() {
             category: true,
           },
         },
+
         seller: {
           select: {
             storeName: true,
           },
         },
       },
+
       orderBy: {
         createdAt: "desc",
       },
@@ -95,6 +100,7 @@ export default async function AdminProducts() {
                   <p className="mt-1 text-xs text-slate-500">
                     IDR{" "}
                     {product.price.toLocaleString("id-ID")}
+
                     {product.discountPercent > 0 && (
                       <>
                         {" "}
@@ -111,6 +117,11 @@ export default async function AdminProducts() {
                   >
                     Edit
                   </a>
+
+                  <DeleteProductButton
+                    productId={product.id}
+                    productName={product.name}
+                  />
 
                   <form
                     action="/api/admin/products/status"
