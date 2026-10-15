@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { Logo } from "./Logo";
 
 export function Footer() {
   return (
     <footer className="border-t border-line bg-surface/60">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <Logo size={42} />
+          <div className="text-2xl font-black tracking-tight text-white">
+            CRYON<span className="text-brand-soft">61</span>
+          </div>
+
           <p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">
             Premium Roblox assets, systems, scripts and digital resources for creators.
           </p>
@@ -54,7 +56,7 @@ export function Footer() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Discord ↗
+              Discord &gt;
             </a>
 
             <a
@@ -63,7 +65,7 @@ export function Footer() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              YouTube ↗
+              YouTube &gt;
             </a>
           </div>
         </div>
