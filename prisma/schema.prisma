@@ -243,7 +243,7 @@ model OrderItem {
   commission Int     @default(0)
   order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product    Product @relation(fields: [productId], references: [id])
-  
+
   @@index([orderId])
   @@index([productId])
   @@index([sellerId])
@@ -322,8 +322,8 @@ model License {
   robloxUserId   String?
   status         LicenseStatus       @default(ACTIVE)
   expiresAt      DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
   downloads      Download[]
   downloadTokens DownloadToken[]
   order          Order?              @relation(fields: [orderId], references: [id])
@@ -419,7 +419,7 @@ model CouponUsage {
   orderId   String
   createdAt DateTime @default(now())
   coupon    Coupon   @relation(fields: [couponId], references: [id])
-  order     Order   @relation(fields: [orderId], references: [id])
+  order     Order    @relation(fields: [orderId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([couponId, userId])
@@ -519,6 +519,21 @@ model ApiKey {
   keyHash   String   @unique
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
+}
+
+model HeroBanner {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String
+  buttonText  String?
+  buttonLink  String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, sortOrder])
 }
 
 enum Role {

@@ -295,6 +295,13 @@ export default async function AdminDashboard() {
                 </Link>
 
                 <Link
+                  href="/admin/banners"
+                  className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-semibold text-purple-300 transition hover:bg-purple-500/20 hover:text-white"
+                >
+                  🖼️ Manage Hero Banners
+                </Link>
+
+                <Link
                   href="/licenses"
                   className="rounded-xl border border-line bg-bg px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-purple-500/40 hover:bg-purple-500/5 hover:text-white"
                 >
